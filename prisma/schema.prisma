@@ -7,15 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
+enum UserRole {
   ADMIN
-  EDITOR
+  USER
 }
 
-enum EventStatus {
+enum ContentStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+enum RecurrenceType {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
 }
 
 enum StoryStatus {
@@ -29,7 +36,7 @@ model User {
   name          String
   email         String   @unique
   passwordHash  String
-  role          Role     @default(ADMIN)
+  role          UserRole @default(USER)
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
   createdAt     DateTime @default(now())
@@ -51,11 +58,14 @@ model Event {
   slug        String      @unique
   description String?
   location    String?
-  eventDate   DateTime?
-  startTime   DateTime?
-  endTime     DateTime?
-  status      EventStatus @default(DRAFT)
-  createdAt   DateTime    @default(now())
+  eventDate         DateTime?
+  startTime         DateTime?
+  endTime           DateTime?
+  publicationStatus ContentStatus  @default(DRAFT)
+  recurrenceType    RecurrenceType @default(NONE)
+  recurrenceDays    String[]       @default([])
+  recurrenceEndDate DateTime?
+  createdAt         DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   createdById String? @db.Uuid
@@ -63,7 +73,7 @@ model Event {
 
   images EventImage[]
 
-  @@index([status, eventDate])
+  @@index([publicationStatus, eventDate])
   @@map("events")
 }
 
@@ -72,7 +82,7 @@ model EventImage {
   imageKey    String
   caption     String?
   altText     String?
-  isCover     Boolean? // null for non-covers, true for the one cover
+  isCover     Boolean  @default(false)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -83,7 +93,6 @@ model EventImage {
   uploadedById String? @db.Uuid
   uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull, name: "EventImageUploadedBy")
 
-  @@unique([eventId, isCover])
   @@index([eventId, sortOrder])
   @@map("event_images")
 }
@@ -114,7 +123,9 @@ model GalleryAlbum {
   slug        String   @unique
   description String?
   category    String?
-  isPublished Boolean  @default(false)
+  eventDate   DateTime?
+  location    String?
+  isPublished Boolean  @default(true)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -133,7 +144,7 @@ model GalleryPhoto {
   imageKey    String
   caption     String?
   altText     String?
-  isCover     Boolean? // null for non-covers, true for the one cover
+  isCover     Boolean  @default(false)
   isFeatured  Boolean  @default(false)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
@@ -145,7 +156,6 @@ model GalleryPhoto {
   uploadedById String? @db.Uuid
   uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull, name: "GalleryPhotoUploadedBy")
 
-  @@unique([albumId, isCover])
   @@index([albumId, sortOrder])
   @@map("gallery_photos")
 }

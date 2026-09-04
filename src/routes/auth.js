@@ -31,7 +31,7 @@ router.post('/login', async (req, res, next) => {
       where: {
         email: email.toLowerCase(),
         isActive: true,
-        role: { in: ['ADMIN', 'EDITOR'] },
+        role: { in: ['ADMIN', 'USER'] },
       },
     });
     if (!user) {
@@ -169,15 +169,19 @@ router.post('/logout', async (req, res, next) => {
   }
 });
 
-router.get('/me', requireAuth, async (req, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.id },
-    select: { id: true, name: true, email: true, role: true, isActive: true, lastLoginAt: true },
-  });
-  if (!user || !user.isActive) {
-    return res.status(401).json({ error: 'Unauthorized' });
+router.get('/me', requireAuth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, name: true, email: true, role: true, isActive: true },
+    });
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    res.json({ user });
+  } catch (err) {
+    next(err);
   }
-  res.json({ user });
 });
 
 module.exports = router;

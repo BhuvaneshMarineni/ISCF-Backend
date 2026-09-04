@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
@@ -44,6 +45,7 @@ function signRefreshToken(payload) {
       issuer: ISSUER,
       audience: AUDIENCE,
       algorithm: 'HS256',
+      jwtid: crypto.randomUUID(),
     }
   );
 }
