@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum StoryStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(ADMIN)
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  eventsCreated  Event[]       @relation("EventCreatedBy")
+  imagesUploaded EventImage[]  @relation("EventImageUploadedBy")
+  storiesCreated Story[]       @relation("StoryCreatedBy")
+  albumsCreated  GalleryAlbum[] @relation("GalleryAlbumCreatedBy")
+  photosUploaded GalleryPhoto[] @relation("GalleryPhotoUploadedBy")
+  authSessions   AuthSession[]
+
+  @@map("users")
+}
+
+model Event {
+  id          String      @id @default(uuid()) @db.Uuid
+  title       String
+  slug        String      @unique
+  description String?
+  location    String?
+  eventDate   DateTime?
+  startTime   DateTime?
+  endTime     DateTime?
+  status      EventStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  createdById String? @db.Uuid
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull, name: "EventCreatedBy")
+
+  images EventImage[]
+
+  @@index([status, eventDate])
+  @@map("events")
+}
+
+model EventImage {
+  id          String   @id @default(uuid()) @db.Uuid
+  imageKey    String
+  caption     String?
+  altText     String?
+  isCover     Boolean? // null for non-covers, true for the one cover
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  eventId     String @db.Uuid
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  uploadedById String? @db.Uuid
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull, name: "EventImageUploadedBy")
+
+  @@unique([eventId, isCover])
+  @@index([eventId, sortOrder])
+  @@map("event_images")
+}
+
+model Story {
+  id            String      @id @default(uuid()) @db.Uuid
+  title         String
+  slug          String      @unique
+  excerpt       String?
+  content       String      @db.Text
+  authorName    String?
+  coverImageKey String?
+  status        StoryStatus @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  createdById String? @db.Uuid
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull, name: "StoryCreatedBy")
+
+  @@index([status, publishedAt])
+  @@map("stories")
+}
+
+model GalleryAlbum {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  slug        String   @unique
+  description String?
+  category    String?
+  isPublished Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdById String? @db.Uuid
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull, name: "GalleryAlbumCreatedBy")
+
+  photos GalleryPhoto[]
+
+  @@index([isPublished, sortOrder])
+  @@map("gallery_albums")
+}
+
+model GalleryPhoto {
+  id          String   @id @default(uuid()) @db.Uuid
+  imageKey    String
+  caption     String?
+  altText     String?
+  isCover     Boolean? // null for non-covers, true for the one cover
+  isFeatured  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  albumId String        @db.Uuid
+  album   GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+
+  uploadedById String? @db.Uuid
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull, name: "GalleryPhotoUploadedBy")
+
+  @@unique([albumId, isCover])
+  @@index([albumId, sortOrder])
+  @@map("gallery_photos")
+}
+
+model AuthSession {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  refreshTokenHash String
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  lastUsedAt       DateTime?
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("auth_sessions")
+}
